@@ -3,14 +3,14 @@ import numpy as np
 import pandas as pd
 import os
 # 用户<1163240>没有相似的用户
-# 48190738没有相似用户已移除
+# 用户<48190738>没有相似用户
 # 用户<2576305>没有相似的用户
 # 用户<4344558>没有相似的用户
 train_csv = pd.read_csv('train.csv')
 test_csv = pd.read_csv(r'test.csv')
-newlist=[]
-global tmp,k
-tmp=0
+newlist = []
+global tmp, k
+tmp = 0
 
 # print(train_csv.head())
 # print(test_csv.head())
@@ -64,31 +64,11 @@ def predict(uid, mid, ratings_matrix, user_similar):
     # 计算预测的评分值并返回
     predict_rating = sum_up / sum_down
     # print("预测出用户<%d>对电影<%d>的评分：%0.2f" % (uid, mid, predict_rating))
-    newlist.append(round(predict_rating,2))
+    newlist.append(round(predict_rating, 2))
     return round(predict_rating, 2)
 
-# 添加过滤规则
 
-
-# def predict_all(uid, item_ids, ratings_matrix, user_similar):
-#     # '''
-#     # 预测全部评分
-#     # :param uid:用户id
-#     # :param item_ids:要预测的物品id列表
-#     # :param ratings_matrix:用户-物品打分矩阵
-#     # :param user_similar:用户两两间的相似度
-#     # :return:生成器，逐个返回预测评分
-#     # '''
-#     # 逐个预测
-#     for iid in item_ids:
-#         try:
-#             rating = predict(uid, iid, ratings_matrix, user_similar)
-#         except Exception as e:
-#             print(e)
-#         else:
-#             yield uid, iid, rating
-# 添加过滤规则
-def _predict_all(uid,item_ids,ratings_matrix,user_similar):
+def _predict_all(uid, item_ids, ratings_matrix, user_similar):
     '''
     预测全部评分
     :param uid:用户id
@@ -100,15 +80,15 @@ def _predict_all(uid,item_ids,ratings_matrix,user_similar):
     # 逐个预测
     for iid in item_ids:
         try:
-            rating = predict(uid,iid,ratings_matrix,user_similar)
+            rating = predict(uid, iid, ratings_matrix, user_similar)
         except Exception as e:
             print(e)
         else:
-            yield uid,iid,rating
-            
-def predict_all(uid,ratings_matrix,user_similar,filter_rule=None):
+            yield uid, iid, rating
+
+
+def predict_all(uid, ratings_matrix, user_similar, filter_rule=None):
     '''
-    预测全部评分，并可根据条件进行前置过滤
     :param uid:用户id
     :param ratings_matrix:用户-物品打分矩阵
     :param user_similar:用户两两间的相似度
@@ -116,23 +96,25 @@ def predict_all(uid,ratings_matrix,user_similar,filter_rule=None):
     :return:生成器，逐个返回预测评分
     '''
     global k
-    k=0
+    k = 0
     global tmp
     # print(test_csv.index.size)
-    for j in range(tmp,test_csv.index.size):
-        if(test_csv['user_id'][j]==i):
-            k+=1
-        else :
-            tmp=j
+    for j in range(tmp, test_csv.index.size):
+        if (test_csv['user_id'][j] == i):
+            k += 1
+        else:
+            tmp = j
             break
     item_ids = test_csv['movie_id'][j-k:j]
-    yield from _predict_all(uid,item_ids,ratings_matrix,user_similar)
-    
-def top_k_rs_result(user_id,k):
+    yield from _predict_all(uid, item_ids, ratings_matrix, user_similar)
+
+
+def top_k_rs_result(user_id, k):  # 用于预测对某个用户推荐前k个电影
     ratings_matrix = data_load()
     user_similar = sim_compute(ratings_matrix)
-    results = predict_all(user_id,ratings_matrix,user_similar)
-    return sorted(results,key=lambda x: x[2],reverse=True)[:k]
+    results = predict_all(user_id, ratings_matrix, user_similar)
+    return sorted(results, key=lambda x: x[2], reverse=True)[:k]
+
 
 if __name__ == '__main__':
     ratings_matrix = data_load()
@@ -141,6 +123,6 @@ if __name__ == '__main__':
     print(ratings_matrix)
     from pprint import pprint
     for i in ratings_matrix.index:
-        result = top_k_rs_result(i,20)
-    test_csv['predict_score']=newlist
-    test_csv.to_csv('new.csv',index=False,sep=',')
+        result = top_k_rs_result(i, 20)
+    test_csv['predict_score'] = newlist
+    test_csv.to_csv('all.csv', index=False, sep=',')

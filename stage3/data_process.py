@@ -1,7 +1,5 @@
 from sklearn.model_selection import train_test_split
 import pandas as pd
-
-
 #将数据集划分为训练集、测试集
 #由于本人水平太菜了故只用了前三个数据没有使用tag数据
 
@@ -13,7 +11,6 @@ def spilt_data():
     X_train=X_train.drop(['time','tag'],axis=1)
     X_train.to_csv("train.csv",index=False,sep=',')
     X_test.to_csv("test.csv",index=False,sep=',')
-
     # print(original_data.size,train_data.size,test_data.size)
 #对数据集和测试机按照用户id进行排序
 def sort(df_loc,name):
@@ -39,5 +36,5 @@ if __name__=='__main__':
     test_data=pd.read_csv('test.csv')
     sort(train_data,'train.csv')
     sort(test_data,'test.csv')
-    csv_to_txt('train.csv')
-    csv_to_txt('test.csv')
+    # csv_to_txt('train.csv')
+    # csv_to_txt('test.csv')
