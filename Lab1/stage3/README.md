@@ -6,7 +6,7 @@
 
 
 
-![QQ截图20221119152317](/pic/QQ截图20221119152317.png)
+![tree](./pic/tree.png)
 
 - Movie_score.csv为提供电影评分样本
 
