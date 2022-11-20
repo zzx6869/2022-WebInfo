@@ -62,24 +62,24 @@ def boolSearch(a: str, op: str, b: str, table: dict):
 def main(argv):
     search_type = ''
     search_string = ''
-    resourt_file = ''
+    result_file = ''
     try:
         opts, args = getopt.getopt(argv, 'ht:s:f')
     except getopt.GetoptError:
-        print('boolSearch -t search_type -s search_string -f resourt file')
+        print('boolSearch -t search_type -s search_string -f result file')
     for opt, arg in opts:
         if (opt == '-h'):
             print('''boolSearch -t search_type -s search_string -f search file
                         search_type: movie or book     
                         search_string: bool expression
-                        resourt file: default resourt.txt''')
+                        result file: default result.txt''')
             exit(0)
         elif (opt == '-t'):
             search_type = arg
         elif (opt == '-s'):
             search_string = arg
         elif (opt == '-f'):
-            resourt_file = arg
+            result_file = arg
     
     table = {}
     if (search_type == 'book'):
@@ -125,10 +125,10 @@ def main(argv):
             tmp.append(word)
         print(word, cur_list)
     
-    if resourt_file == '':
-        resourt_file = 'resourt.txt'
+    if result_file == '':
+        result_file = 'result.txt'
     
-    with open(resourt_file, 'w') as file:
+    with open(result_file, 'w') as file:
         if search_type == 'book':
             for index in cur_list:
                 filename = 'book{:0>3d}'.format(index)
