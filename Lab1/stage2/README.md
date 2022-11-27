@@ -18,7 +18,3 @@
 - books/* : 存储各个 book ，用于返回查询的到的文档。
 - movie_keywords/* movies/* : 同上。
 - book_table.json movie_table.json : 存储两种文档词项的编号，以寻找倒排索引。
-
-## 文档的处理
-
-​	这里直接使用了来自THU的分词算法
