@@ -60,7 +60,6 @@ def predict(uid, mid, ratings_matrix, user_similar):
         sum_up += similarity * sim_user_rating_for_item
         # 计算分母的值
         sum_down += similarity
-
     # 计算预测的评分值并返回
     predict_rating = sum_up / sum_down
     # print("预测出用户<%d>对电影<%d>的评分：%0.2f" % (uid, mid, predict_rating))
@@ -69,15 +68,6 @@ def predict(uid, mid, ratings_matrix, user_similar):
 
 
 def _predict_all(uid, item_ids, ratings_matrix, user_similar):
-    '''
-    预测全部评分
-    :param uid:用户id
-    :param item_ids:要预测的物品id列表
-    :param ratings_matrix:用户-物品打分矩阵
-    :param user_similar:用户两两间的相似度
-    :return:生成器，逐个返回预测评分
-    '''
-    # 逐个预测
     for iid in item_ids:
         try:
             rating = predict(uid, iid, ratings_matrix, user_similar)
@@ -88,13 +78,6 @@ def _predict_all(uid, item_ids, ratings_matrix, user_similar):
 
 
 def predict_all(uid, ratings_matrix, user_similar, filter_rule=None):
-    '''
-    :param uid:用户id
-    :param ratings_matrix:用户-物品打分矩阵
-    :param user_similar:用户两两间的相似度
-    :param filter_rule:过滤规则，只能是四选一，否则将抛异常："unhot","rated",["unhot","rated"],None
-    :return:生成器，逐个返回预测评分
-    '''
     global k
     k = 0
     global tmp

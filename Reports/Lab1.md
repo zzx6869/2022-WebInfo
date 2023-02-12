@@ -8,14 +8,6 @@
 >
 > 刘阳 PB20111677
 
-## 分工：
-
-- 张展翔：stage3
-- 黄鑫：stage1
-- 刘阳：stage2
-
-三人均完成所分部分的全部工作。
-
 ## Stage 1 爬虫爬取豆瓣电影，书籍信息
 
 ### 实验目标
@@ -130,7 +122,7 @@ except Exception as e:  # 同一ip爬取失败达到3次则更换一次ip,若再
         "review_num": re.findall("(?<=ratingCount\": \").*?(?=\")", content),
 ```
 
-### 结果展示
+## 结果展示
 
 ​	爬虫共爬取到988份指定id的书籍信息以及995项指定id的电影信息，共有12份无效数据ID和5份无效电影ID
 
@@ -172,178 +164,6 @@ except Exception as e:  # 同一ip爬取失败达到3次则更换一次ip,若再
 <img src=".\pic\book.png" alt="book" style="zoom: 80%;" />
 
 ## Stage 2
-
-### 文件结构
-
-#### 算法文件
-
-- boolSearch.py: 向外提供布尔查询的接口，具体使用请参照 `python3 boolSearch.py -h` 。
-- encoding.py: 依据 elias gamma 的压缩编码方式，对一个数字进行解码和编码。
-- indexCompressor.py: 压缩编码/解码器，对一个词汇的倒排索引进行编码、解码。
-- parseFile.py: 对 stage1 得到的 book 和 movie 文件进行处理、再存储。
-- tableMaker.py: 生成倒排表。
-
-#### 数据文件/文件夹
-
-- book_keywords/* : 存储 book 类型文档各个词汇的倒排索引。
-- books/* : 存储各个 book ，用于返回查询的到的文档。
-- movie_keywords/* movies/* : 同上。
-- book_table.json movie_table.json : 存储两种文档词项的编号，以寻找倒排索引。
-
-### 实验环境
-
-实验环境使用了 virtualenv ，python 版本为 3.7.13 。
-
-### 文本的预处理
-
-​	文本的预处理需要对获取的文本进行提取信息并进行分词，对于书籍，我提取了书籍的名字、书籍介绍、作者介绍，对于电影，我提取了电影的名字和电影简介，作为该项目的全部文本。分词采用了THU的分词算法thulac，将文本表征为关键词集合。我还采用了百度的停用词库，对于取得的关键词集合，删去其中的停用词，来构成该文档的最终关键词集合，以书籍类型为例：
-
-```python
-def get_book_wordlist():
-    lac1 = thulac.thulac(model_path='../../models', seg_only=False, filt=True)
-    briefs = []
-    stop_words = [line.strip() for line in open('baidu_stopwords.txt', 'r').readlines()]
-    stop_words.append(' ')
-    with open('../stage1/Book_info.json', 'r') as book_file:
-        books = json.loads(book_file.read())
-        for book in books:
-            message = book['name'][0]
-            if (isinstance(book['description_of_book'], str)):
-                message += book['description_of_book']
-            if (isinstance(book['description_of_author'], str)):
-                message += book['description_of_author']
-            words = lac1.cut(message)
-            for word in words.copy():
-                if word[0] in stop_words:
-                    words.remove(word)
-            briefs.append(words)
-    return briefs
-```
-
-### 倒排表的生成
-
-​	对于上一步生成的关键词集合，我们只需要统计关键词在出现的文档，就可以得到关键词的倒排表。这里为了便于取用文档，而不必要将所有文档加载进内存，写了一个 `parseFlie.py` 文件，用来分开stage1得到的结果，进行了重编号，放在 ./books/ 和 ./movies/ 文件夹下。
-
-​	对于生成的倒排表，需要进行压缩存储。这里采用了 elias-gamma 算法进行压缩，参考了github上的一些代码，写了一个 `indexCompressor.py` 模块来为倒排表进行编码和解码，该模块有一个初始化函数，存储倒排表。build 方法对初始化函数传进去的倒排表进行压缩，返回一个 bytes 类型的对象，即为压缩后的倒排表。decode 方法对传入的 bytes 类型的对象进行解码，返回该类型的倒排表，为一个元素均为 int 型的列表：
-
-```python
-from encoding import *
-
-class Compressor:
-    def __init__(self, index_list):
-        self.index_list = index_list
-
-    def build(self):
-        compress_data = bytes('', 'ascii')
-        for index in self.index_list:
-            elias_code = elias_gamma(index)
-            compress_data += bytes([int(x, 2) for x in split_code_to_8_bits(add_leading_zeros(elias_code))])
-        return compress_data
-
-    def decode(self, data: bytes):
-        num = int.from_bytes(data, 'big', signed=False)
-        bit_list = []
-        for i in range(data.__len__() * 8):
-            bit_list.append(num % 2)
-            num = num // 2
-        bit_list.reverse()
-        
-        res = []
-        i = 0
-        while i < bit_list.__len__():
-            len = 0
-            exp = 0
-            offset = 0
-            while bit_list[i] == 0:
-                i += 1
-            while bit_list[i] == 1:
-                len += 1
-                i += 1
-            exp = 1 << len
-            while len > 0:
-                len -= 1
-                i += 1
-                offset = (offset << 1) + bit_list[i]
-            i += 1
-            res.append(exp + offset)
-        return res
-```
-
-​	这样在生成倒排表的同时就可以进行压缩，这里将压缩后的倒排表中的索引按照关键词的序号进行存储在 ./book_keywords/ 和 ./movie_keywords/ 下。由于没想明白跳表指针怎么压缩，就没有建立跳表指针，经过观察每一个关键词的索引表其实并不长，其实跳表指针的必要性不大（）。
-
-### 布尔查询
-
-​	布尔查询的操作都在 `boolSearch.py` 文件中实现。查询方式为：
-
-```
-> python3 boolSearch.py -h
-
-boolSearch -t search_type -s search_string -f search file
-                        search_type: movie or book     
-                        search_string: bool expression
-                        result file: default result.txt
-```
-
-​	文件中实现了2个函数 merge 和 extract ，用来将两个索引表取并集和交集，就不放出来了。查询得到的结果保存在命令行中输入的文件中，若参数缺省则默认为 result.txt 。
-
-### 结果展示
-
-​	这里来查询编号为69、74、77号的电影。编号为69号的电影为《西西里的美丽传说》，采用关键词 '西西里 and 传说' 进行查询，得到的结果仅有《西西里的美丽传说》这一部电影；采用关键词 '美丽 and 传说' 进行搜索，得到的结果有四部电影。因为搜索到的文件包含电影的名字和简介，这里展示的结果中我删去了大部分的简介内容。
-
-```
-name: 西西里的美丽传说
-description:
-　　当我还只是十三岁时，1941年春末的那一天...
-```
-
-```
-name: 惊情四百年
-description:
-　　这是一部阴森诡异的吸血鬼传说...
-
-
-name: 亚瑟和他的迷你王国
-description:
-　　为了保住外婆的花园...
-
-
-name: 诸神之战
-description:
-　　不堪忍受奥林匹斯..
-
-
-name: 天堂口
-description:
-　　阿峰（吴彦祖饰）...
-
-
-name: 西西里的美丽传说
-description:
-　　当我还只是十三岁时...
-```
-
-​	然后查询编号为74号的电影《小鞋子》，采用关键词 '鞋 and 比赛' ，得到的结果如下：
-
-```
-ame: 小鞋子
-description:
-　　家境贫寒的男孩Ali（AmirFarrokhHashemian）帮妹妹Zahra（BahareSeddiqi）取修补好的鞋子时...
-```
-
-​	最后查询编号为77号的电影《沉默的羔羊》，采用关键词 '沉默 and 羔羊' ，得到的结果如下：
-
-```
-name: 汉尼拔
-description:
-　　本片是《沉默的羔羊》十周年纪念日推出的续集...
-
-
-name: 沉默的羔羊
-description:
-　　联调局学院学员ClariceM.Starling（乔迪·福斯特饰）受行为科学组的JackCrawford（斯科特·格伦饰）指派...
-```
-
-​	上面的查询可能得到多余的结果，根据采用搜索的词汇的冷门程度可能出现数量不等的多余结果，但是都能得到我们想要查询的电影，结果可以认为正确。
 
 ## Stage 3
 
