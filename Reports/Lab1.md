@@ -192,7 +192,7 @@ except Exception as e:  # 同一ip爬取失败达到3次则更换一次ip,若再
 
 ### 实验环境
 
-实验环境使用了 virtualenv ，python 版本为 3.7.13 。
+实验环境使用了 virtualenv ，python 版本为 3.7
 
 ### 文本的预处理
 
