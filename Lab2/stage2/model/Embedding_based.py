@@ -100,9 +100,8 @@ class Embedding_based(nn.Module):
         neg_t_embed = F.normalize(neg_t_embed,p=2,dim=1)
 
         # 6. 分别计算正样本三元组 (h_embed, r_embed, pos_t_embed) 和负样本三元组 (h_embed, r_embed, neg_t_embed) 的得分
-        pos_score = torch.sum(torch.pow(h_embed + r_embed - pos_t_embed, 2), dim=1)                                                                      # (kg_batch_size)
-        neg_score = torch.sum(torch.pow(h_embed + r_embed - neg_t_embed, 2), dim=1)                                                                     # (kg_batch_size)
-
+        pos_score = torch.sum((h_embed + r_embed - pos_t_embed),dim=1)                                                                      # (kg_batch_size)
+        neg_score = torch.sum((h_embed + r_embed - neg_t_embed),dim=1)        
         # 7. 使用 BPR Loss 进行优化，尽可能使负样本的得分大于正样本的得分
         kg_loss = (float)(-1) * F.logsigmoid(neg_score - pos_score)
         kg_loss = torch.mean(kg_loss)
