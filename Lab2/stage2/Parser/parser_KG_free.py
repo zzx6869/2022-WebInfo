@@ -12,7 +12,7 @@ def parse_args():
     parser.add_argument('--data_dir', nargs='?', default='data/',
                         help='Input data path.')
     
-    parser.add_argument("--cuda", action='store_true',
+    parser.add_argument("--cuda", action='store_true',default=True,
                         help="use gpu or not")
     parser.add_argument("--gpu_id", type=int, default=0,
                         help="gpu id")
