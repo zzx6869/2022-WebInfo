@@ -4,6 +4,7 @@ import torch.nn.functional as F
 
 
 def _L2_loss_mean(x):
+
     return torch.mean(torch.sum(torch.pow(x, 2), dim=1, keepdim=False) / 2.)
 
 
@@ -26,28 +27,40 @@ class Aggregator(nn.Module):
             self.linear = nn.Linear(self.embed_dim * 2, self.embed_dim)         # W in Equation (7)
             nn.init.xavier_uniform_(self.linear.weight)
 
+        elif self.aggregator_type == 'bi-interaction':
+            self.linear1 = nn.Linear(self.embed_dim, self.embed_dim)      # W1 in Equation (8)
+            self.linear2 = nn.Linear(self.embed_dim, self.embed_dim)      # W2 in Equation (8)
+            nn.init.xavier_uniform_(self.linear1.weight)
+            nn.init.xavier_uniform_(self.linear2.weight)
+
 
     def forward(self, ego_embeddings, A_in):
         """
         ego_embeddings:  (n_users + n_entities, embed_dim)
         A_in:            (n_users + n_entities, n_users + n_entities), torch.sparse.FloatTensor
         """
-        # 1. Equation (3) 得到一跳邻域的表征 side_embeddings
-        side_embeddings =                                                       # (n_users + n_entities, embed_dim)
+        # 1.TODO[done]: Equation (3) 得到一跳邻域的表征 side_embeddings
+        side_embeddings = torch.matmul(A_in, ego_embeddings)                    # (n_users + n_entities, embed_dim)
 
         if self.aggregator_type == 'gcn':
-            # 2. Equation (6) 将中心节点表征和一跳邻域表征相加，再进行线性变换和非线性激活
-            embeddings =                                                        # (n_users + n_entities, embed_dim)
-            embeddings =                                                        # (n_users + n_entities, embed_dim)
+            # 2.TODO[done]: Equation (6) 将中心节点表征和一跳邻域表征相加，再进行线性变换和非线性激活
+            embeddings = ego_embeddings + side_embeddings                                                       # (n_users + n_entities, embed_dim)
+            embeddings = self.activation(self.linear(embeddings))                                               # (n_users + n_entities, embed_dim)
 
         elif self.aggregator_type == 'graphsage':
-            # 3. Equation (7) 将中心节点表征和一跳邻域表征拼接，再进行线性变换和非线性激活
-            embeddings =                                                        # (n_users + n_entities, embed_dim * 2)
-            embeddings =                                                        # (n_users + n_entities, embed_dim)
+            # 3.TODO[done]: Equation (7) 将中心节点表征和一跳邻域表征拼接，再进行线性变换和非线性激活
+            embeddings = torch.concat([ego_embeddings, side_embeddings], dim=1)                                 # (n_users + n_entities, embed_dim * 2)
+            embeddings = self.activation(self.linear(embeddings))                                               # (n_users + n_entities, embed_dim)
 
         elif self.aggregator_type == 'lightgcn':
-            # 4. Equation (8) 简单地将中心节点表征和一跳邻域表征相加
-            embeddings = 
+            # 4.TODO[done]: Equation (8) 简单地将中心节点表征和一跳邻域表征相加
+            embeddings = ego_embeddings + side_embeddings
+
+        elif self.aggregator_type == 'bi-interaction':
+
+            sum_embeddings = self.activation(self.linear1(ego_embeddings + side_embeddings))
+            bi_embeddings = self.activation(self.linear2(ego_embeddings * side_embeddings))
+            embeddings = bi_embeddings + sum_embeddings
 
         embeddings = self.message_dropout(embeddings)                           # (n_users + n_entities, out_dim)
         return embeddings
@@ -93,15 +106,15 @@ class GNN_based(nn.Module):
         ego_embed = self.entity_user_embed.weight                               # (n_users + n_entities, embed_dim)
         all_embed = [ego_embed]
 
-        # 5. 迭代地计算每一层卷积层的实体（包含用户）嵌入，将其L2范数归一化后，append到all_embed中
+        # 5.TODO[done]: 迭代地计算每一层卷积层的实体（包含用户）嵌入，将其L2范数归一化后，append到all_embed中
         for idx, layer in enumerate(self.aggregator_layers):
-                                                                                # (n_users + n_entities, embed_dim)
-        
-        
+            ego_embed = layer(ego_embed, self.A_in)
+            norm_embed = F.normalize(ego_embed, p=2, dim=1)
+            all_embed.append(norm_embed)                                                                  # (n_users + n_entities, embed_dim)
 
         # 无需修改，将每层的输出加起来形成最终的实体（包含用户）嵌入，并保存在all_embed中
         all_embed = torch.sum(torch.stack(all_embed), dim=0)                    # (n_users + n_entities, embed_dim)
-        
+
         return all_embed
 
 
@@ -144,23 +157,29 @@ class GNN_based(nn.Module):
         pos_t_embed = self.entity_user_embed(pos_t)                                     # (kg_batch_size, embed_dim)
         neg_t_embed = self.entity_user_embed(neg_t)                                     # (kg_batch_size, embed_dim)
 
-        # 7. 计算头实体，尾实体和负采样的尾实体在对应关系空间中的投影嵌入
-        r_mul_h =                                                                       # (kg_batch_size, relation_dim)
-        r_mul_pos_t =                                                                   # (kg_batch_size, relation_dim)
-        r_mul_neg_t =                                                                   # (kg_batch_size, relation_dim)
+        #TODO[done]: 7. 计算头实体，尾实体和负采样的尾实体在对应关系空间中的投影嵌入
+        """
+        h_r = h * W_r
+        t_r = t * W_r
+        """
+        r_mul_h = torch.bmm(h_embed.unsqueeze(1), W_r).squeeze(1)          # (kg_batch_size, relation_dim)
+        r_mul_pos_t = torch.bmm(pos_t_embed.unsqueeze(1), W_r).squeeze(1)  # (kg_batch_size, relation_dim)
+        r_mul_neg_t = torch.bmm(neg_t_embed.unsqueeze(1), W_r).squeeze(1)  # (kg_batch_size, relation_dim)
 
-        # 8. 对关系嵌入，头实体嵌入，尾实体嵌入，负采样的尾实体嵌入进行L2范数归一化
-        r_embed = 
-        r_mul_h = 
-        r_mul_pos_t = 
-        r_mul_neg_t = 
+        #TODO[done]: 8. 对关系嵌入，头实体嵌入，尾实体嵌入，负采样的尾实体嵌入进行L2范数归一化
+        r_embed = F.normalize(r_embed, p=2, dim=1)
+        r_mul_h = F.normalize(r_mul_h, p=2, dim=1)
+        r_mul_pos_t = F.normalize(r_mul_pos_t, p=2, dim=1)
+        r_mul_neg_t = F.normalize(r_mul_neg_t, p=2, dim=1)
+        # || h_r + r - t_r ||^2 :取L2范数的平方
+        #TODO[done]: 9. 分别计算正样本三元组 (h_embed, r_embed, pos_t_embed) 和负样本三元组 (h_embed, r_embed, neg_t_embed) 的得分
+        pos_score = torch.sum(torch.pow(r_mul_h + r_embed - r_mul_pos_t, 2), dim=1)     # (kg_batch_size)
+        neg_score = torch.sum(torch.pow(r_mul_h + r_embed - r_mul_neg_t, 2), dim=1)     # (kg_batch_size)
 
-        # 9. 分别计算正样本三元组 (h_embed, r_embed, pos_t_embed) 和负样本三元组 (h_embed, r_embed, neg_t_embed) 的得分
-        pos_score =                                                                     # (kg_batch_size)
-        neg_score =                                                                     # (kg_batch_size)
-
-        # 10. 使用 BPR Loss 进行优化，尽可能使负样本的得分大于正样本的得分
-        kg_loss = 
+        # Equation (2)
+        #TODO[done]: 10. 使用 BPR Loss 进行优化，尽可能使负样本的得分大于正样本的得分
+        kg_loss = (-1.0) * F.logsigmoid(neg_score - pos_score)
+        kg_loss = torch.mean(kg_loss)
 
         l2_loss = _L2_loss_mean(r_mul_h) + _L2_loss_mean(r_embed) + _L2_loss_mean(r_mul_pos_t) + _L2_loss_mean(r_mul_neg_t)
         loss = kg_loss + self.kg_l2loss_lambda * l2_loss
@@ -175,23 +194,25 @@ class GNN_based(nn.Module):
         neg_t:  (kg_batch_size)
         """
         r_embed = self.relation_embed(r)                                                # (kg_batch_size, relation_dim)
-        
+
         h_embed = self.entity_user_embed(h)                                             # (kg_batch_size, embed_dim)
         pos_t_embed = self.entity_user_embed(pos_t)                                     # (kg_batch_size, embed_dim)
         neg_t_embed = self.entity_user_embed(neg_t)                                     # (kg_batch_size, embed_dim)
 
-        # 11. 对关系嵌入，头实体嵌入，尾实体嵌入，负采样的尾实体嵌入进行L2范数归一化
-        r_embed = 
-        h_embed = 
-        pos_t_embed = 
-        neg_t_embed = 
+        #TODO[done]: 11. 对关系嵌入，头实体嵌入，尾实体嵌入，负采样的尾实体嵌入进行L2范数归一化
+        r_embed = F.normalize(r_embed, p=2, dim=1)
+        h_embed = F.normalize(h_embed, p=2, dim=1)
+        pos_t_embed = F.normalize(pos_t_embed, p=2, dim=1)
+        neg_t_embed = F.normalize(neg_t_embed, p=2, dim=1)
 
-        # 12. 分别计算正样本三元组 (h_embed, r_embed, pos_t_embed) 和负样本三元组 (h_embed, r_embed, neg_t_embed) 的得分
-        pos_score =                                                                      # (kg_batch_size)
-        neg_score =                                                                      # (kg_batch_size)
+        # 取L2范数
+        #TODO[done]: 12. 分别计算正样本三元组 (h_embed, r_embed, pos_t_embed) 和负样本三元组 (h_embed, r_embed, neg_t_embed) 的得分
+        pos_score = torch.sqrt(torch.sum(torch.pow(h_embed + r_embed - pos_t_embed, 2), dim=1))  # (kg_batch_size)
+        neg_score = torch.sqrt(torch.sum(torch.pow(h_embed + r_embed - neg_t_embed, 2), dim=1))  # (kg_batch_size)
 
-        # 13. 使用 BPR Loss 进行优化，尽可能使负样本的得分大于正样本的得分
-        kg_loss = 
+        #TODO[done]: 13. 使用 BPR Loss 进行优化，尽可能使负样本的得分大于正样本的得分
+        kg_loss = (-1.0) * F.logsigmoid(neg_score - pos_score)
+        kg_loss = torch.mean(kg_loss)
 
         l2_loss = _L2_loss_mean(h_embed) + _L2_loss_mean(r_embed) + _L2_loss_mean(pos_t_embed) + _L2_loss_mean(neg_t_embed)
         loss = kg_loss + self.kg_l2loss_lambda * l2_loss
@@ -210,6 +231,45 @@ class GNN_based(nn.Module):
         cf_score = torch.matmul(user_embed, item_embed.transpose(0, 1))             # (n_users, n_items)
         return cf_score
 
+    def update_attention_batch(self, h_list, t_list, r_idx):#注意力机制
+        r_embed = self.relation_embed.weight[r_idx]
+        W_r = self.trans_M[r_idx]
+
+        h_embed = self.entity_user_embed.weight[h_list]
+        t_embed = self.entity_user_embed.weight[t_list]
+
+        r_mul_h = torch.matmul(h_embed, W_r)
+        r_mul_t = torch.matmul(t_embed, W_r)
+        v_list = torch.sum(r_mul_t * torch.tanh(r_mul_h + r_embed), dim=1)
+        return v_list
+
+    def update_attention(self, h_list, t_list, r_list, relations):
+        device = self.A_in.device
+
+        rows = []
+        cols = []
+        values = []
+
+        for r_idx in relations:
+            index_list = torch.where(r_list == r_idx)
+            batch_h_list = h_list[index_list]
+            batch_t_list = t_list[index_list]
+
+            batch_v_list = self.update_attention_batch(batch_h_list, batch_t_list, r_idx)
+            rows.append(batch_h_list)
+            cols.append(batch_t_list)
+            values.append(batch_v_list)
+
+        rows = torch.cat(rows)
+        cols = torch.cat(cols)
+        values = torch.cat(values)
+
+        indices = torch.stack([rows, cols])
+        shape = self.A_in.shape
+        A_in = torch.sparse.FloatTensor(indices, values, torch.Size(shape))
+
+        A_in = torch.sparse.softmax(A_in.cpu(), dim=1)
+        self.A_in.data = A_in.to(device)
 
     def forward(self, *input, mode):
         if mode == 'train_cf':
@@ -218,5 +278,7 @@ class GNN_based(nn.Module):
             return self.calc_kg_loss_TransR(*input)
         if mode == 'TransE':
             return self.calc_kg_loss_TransE(*input)
+        if mode == 'update_att':
+            return self.update_attention(*input)
         if mode == 'predict':
             return self.calc_score(*input)
