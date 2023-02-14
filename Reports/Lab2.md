@@ -509,7 +509,7 @@ for idx, layer in enumerate(self.aggregator_layers):
 
 ##### TransE算法
 
-<img src="F:\Desktop\GNN\TransE.png" alt="image-20230214110024482" style="zoom:50%;" />
+<img src="/pic/TransE.png" alt="image-20230214110024482" style="zoom:50%;" />
 
 TransE算法对关系嵌入，头实体嵌入，尾实体嵌入，负采样的尾实体嵌入进行L2范数归一化后，以L2范数计算正负样本三元组的得分,最后通过BPR Loss进行优化
 
@@ -532,7 +532,7 @@ TransE算法对关系嵌入，头实体嵌入，尾实体嵌入，负采样的�
 
 ##### TransR
 
-<img src="F:\Desktop\GNN\TransR.png" alt="image-20230214110308880" style="zoom:50%;" />
+<img src="/pic/TransR.png" alt="image-20230214110308880" style="zoom:50%;" />
 
 与TranE不同，TranR首先计算实体在关系空间中的投影嵌入，使用投影嵌入进行评分,且正负样本的评分函数选择L2范数的平方,依然采用BPR Loss进行优化
 
@@ -593,9 +593,9 @@ kg_loss = torch.mean(kg_loss)
 
 粉红色曲线为KG_free_based的训练指标
 
-![Figure_1](F:\Desktop\GNN\Figure_1.png)
+![Figure_1](/pic/Figure_1.png)
 
-![Figure_2](F:\Desktop\GNN\Figure_2.png)
+![Figure_2](/pic/Figure_2.png)
 
 通过比对曲线图我们不难发现:
 
