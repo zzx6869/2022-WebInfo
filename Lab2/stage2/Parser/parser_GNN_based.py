@@ -1,6 +1,5 @@
 import argparse
 
-
 def parse_args():
     parser = argparse.ArgumentParser(description="Run GNN_based.")
 
@@ -12,7 +11,7 @@ def parse_args():
     parser.add_argument('--data_dir', nargs='?', default='data/',
                         help='Input data path.')
 
-    parser.add_argument("--cuda", action='store_true',
+    parser.add_argument("--cuda", action='store_true', default=True,
                         help="use gpu or not")
     parser.add_argument("--gpu_id", type=int, default=0,
                         help="gpu id")
@@ -39,8 +38,8 @@ def parse_args():
 
     parser.add_argument('--KG_embedding_type', type=str, default='TransR',
                         help='Specify the type of the KG embedding from {TransE, TransR}.')
-    parser.add_argument('--aggregation_type', type=str, default='lightgcn',
-                        help='Specify the type of the aggregation layer from {gcn, graphsage, lightgcn}.')
+    parser.add_argument('--aggregation_type', type=str, default='bi-interaction',
+                        help='Specify the type of the aggregation layer from {gcn, graphsage, lightgcn, bi-interaction}.')
 
     parser.add_argument('--n_layers', type=int, default=2,
                         help='Number of GNN aggregation layers.')
@@ -59,15 +58,21 @@ def parse_args():
     parser.add_argument('--stopping_steps', type=int, default=10,
                         help='Number of epoch for early stopping')
 
-    parser.add_argument('--cf_print_every', type=int, default=1,
+    parser.add_argument('--cf_print_every', type=int, default=20,
                         help='Iter interval of printing CF loss.')
-    parser.add_argument('--kg_print_every', type=int, default=1,
+    parser.add_argument('--kg_print_every', type=int, default=20,
                         help='Iter interval of printing KG loss.')
     parser.add_argument('--evaluate_every', type=int, default=10,
                         help='Epoch interval of evaluating CF.')
 
     parser.add_argument('--Ks', nargs='?', default='[5, 10]',
                         help='Calculate metric@K when evaluating.')
+
+    parser.add_argument('--is_multitasks', type=int, default=0,
+                        help='Dose the model takes multitasks learning 0:no 1:yes.')
+
+    parser.add_argument('--multitasks_lambda', type=float, default=1.0,
+                        help='ratio of kg_loss in multitasks-learning')
 
     args = parser.parse_args()
 

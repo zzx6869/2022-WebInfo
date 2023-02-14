@@ -1,7 +1,7 @@
 import os
 import random
 import collections
-
+from tqdm import tqdm
 import torch
 import numpy as np
 import pandas as pd
@@ -27,53 +27,62 @@ class DataLoader(DataLoaderBase):
         self.create_laplacian_dict()
 
 
-    def construct_data(self, kg_data):
+    def construct_data(self, kg_data: pd.DataFrame):
         '''
             kg_data 为 DataFrame 类型
         '''
-        # 1. 为KG添加逆向三元组，即对于KG中任意三元组(h, r, t)，添加逆向三元组 (t, r+n_relations, h)，
+        #TODO[done]: 1. 为KG添加逆向三元组，即对于KG中任意三元组(h, r, t)，添加逆向三元组 (t, r+n_relations, h)，
         #    并将原三元组和逆向三元组拼接为新的DataFrame，保存在 kg_data 中。
-        
-        kg_data = 
+        n_relations = max(kg_data['r']) + 1
+        inverse_triplets = kg_data.copy()
+        inverse_triplets = inverse_triplets.rename({'h': 't', 't': 'h'}, axis='columns')
+        inverse_triplets['r'] += n_relations
+        kg_data = pd.concat([kg_data, inverse_triplets], ignore_index=True)
 
         # 此处不需要修改，添加两种新关系，即 (user, like, movie) 和 (movie, like_by, user)
         kg_data['r'] += 2
 
-        # 2. 计算关系数，实体数，实体和用户的总数
-        self.n_relations = 
-        self.n_entities = 
-        self.n_users_entities = 
+        # TODO[done]: 2. 计算关系数，实体数，实体和用户的总数
+        self.n_relations = max(kg_data['r']) + 1
+        self.n_entities = max(max(kg_data['h']),max(kg_data['t'])) + 1
+        self.n_users_entities = self.n_users + self.n_entities
 
-        # 3. 使用 map()函数 将 self.cf_train_data 和 self.cf_test_data 中的 用户索引 范围从[0, num of users)
+        #TODO[done]: 3. 使用 map()函数 将 self.cf_train_data 和 self.cf_test_data 中的 用户索引 范围从[0, num of users)
         #    映射到[num of entities, num of entities + num of users)，并保持原有数据形式和结构不变
-        self.cf_train_data = 
-        self.cf_test_data = 
+        self.cf_train_data = (list(map(lambda x: x + self.n_entities, self.cf_train_data[0])), self.cf_train_data[1])
+        self.cf_test_data = (list(map(lambda x: x + self.n_entities, self.cf_test_data[0])), self.cf_test_data[1])
 
-        # 4. 将 self.train_user_dict 和 self.test_user_dict 中的用户索引（即key值）范围从[0, num of users)
+        #TODO[done]: 4. 将 self.train_user_dict 和 self.test_user_dict 中的用户索引（即key值）范围从[0, num of users)
         #    映射到[num of entities, num of entities + num of users)，并保持原有数据形式和结构不变
-        self.train_user_dict = 
-        self.test_user_dict = 
+        user_train = list(self.train_user_dict.keys())
+        for user_idx in user_train:
+            self.train_user_dict[user_idx + self.n_entities] = self.train_user_dict.pop(user_idx)
+        user_test = list(self.test_user_dict.keys())
+        for user_idx in user_test:
+            self.test_user_dict[user_idx + self.n_entities] = self.test_user_dict.pop(user_idx)
 
-        # 5. 以三元组的形式 (user, 0, movie) 重构交互数据，其中 关系0 代表 like
+        #TODO[done]: 5. 以三元组的形式 (user, 0, movie) 重构交互数据，其中 关系0 代表 like
         cf2kg_train_data = pd.DataFrame(np.zeros((self.n_cf_train, 3), dtype=np.int32), columns=['h', 'r', 't'])
-        cf2kg_train_data['h'] = 
-        cf2kg_train_data['t'] = 
+        cf2kg_train_data['h'] = pd.Series(list(self.cf_train_data[0]))
+        cf2kg_train_data['t'] = pd.Series(self.cf_train_data[1])
+        #print(cf2kg_train_data)
 
-        # 6. 以三元组的形式 (movie, 0, user) 重构逆向的交互数据，其中 关系1 代表 like_by
-        inverse_cf2kg_train_data = 
-        inverse_cf2kg_train_data['h'] = 
-        inverse_cf2kg_train_data['t'] = 
+        #TODO[done]: 6. 以三元组的形式 (movie, 1, user) 重构逆向的交互数据，其中 关系1 代表 like_by
+        inverse_cf2kg_train_data = pd.DataFrame(np.ones((self.n_cf_train, 3), dtype=np.int32), columns=['h', 'r', 't'])
+        inverse_cf2kg_train_data['h'] = pd.Series(self.cf_train_data[1])
+        inverse_cf2kg_train_data['t'] = pd.Series(list(self.cf_train_data[0]))
+        #print(inverse_cf2kg_train_data)
 
         self.kg_train_data = pd.concat([kg_data, cf2kg_train_data, inverse_cf2kg_train_data], ignore_index=True)
         self.n_kg_train = len(self.kg_train_data)
 
-        # 7. 根据 self.kg_train_data 构建字典 self.train_kg_dict ，其中key为h, value为tuple(t, r)，
+        #TODO[done]: 7. 根据 self.kg_train_data 构建字典 self.train_kg_dict ，其中key为h, value为tuple(t, r)，
         #    和字典 self.train_relation_dict, 其中key为r，value为tuple(h, t)。
         self.train_kg_dict = collections.defaultdict(list)
         self.train_relation_dict = collections.defaultdict(list)
-
-        
-
+        for _, row in tqdm(self.kg_train_data.iterrows(), total=self.kg_train_data.shape[0], desc='generating new dict'):
+            self.train_kg_dict[row['h']] += [(row['t'], row['r'])]
+            self.train_relation_dict[row['r']] += [(row['h'], row['t'])]
 
     def convert_coo2tensor(self, coo):
         values = coo.data
@@ -109,10 +118,11 @@ class DataLoader(DataLoaderBase):
 
         def random_walk_norm_lap(adj):
             # D^{-1}A
-            # 8. 根据对称归一化拉普拉斯矩阵的计算代码，补全随机游走归一化拉普拉斯矩阵的计算代码
-            
-
-            norm_adj = 
+            #TODO[done]: 8. 根据对称归一化拉普拉斯矩阵的计算代码，补全随机游走归一化拉普拉斯矩阵的计算代码
+            rowsum = np.array(adj.sum(axis=1))
+            d_inv = np.power(rowsum, -1.).flatten()
+            d_mat_inv = sp.diags(d_inv) # D^{-1}
+            norm_adj = d_mat_inv.dot(adj) # D^{-1} \dot A
             return norm_adj.tocoo()
 
         if self.laplacian_type == 'symmetric':
